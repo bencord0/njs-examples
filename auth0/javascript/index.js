@@ -12,16 +12,19 @@ function login(r) {
     crypto.getRandomValues(buffer);
     let state = Buffer.from(buffer).toString("hex");
 
+    let scheme = r.variables.scheme;
+    let http_host = r.variables.http_host;
     let qs = querystring.encode({
         client_id: process.env['AUTH0_CLIENT_ID'],
-        redirect_uri: "http://localhost:3000/callback",
+        redirect_uri: `${scheme}://${http_host}/callback`,
         response_type: "code",
         scope: "openid profile",
         state: state,
     });
 
     // OIDC Authorization Endpoint
-    let url = "https://condi.uk.auth0.com/authorize";
+    let auth0_domain = r.variables.auth0_domain;
+    let url = `https://${auth0_domain}/authorize`;
 
     r.status = 302;
     r.headersOut['location'] = url + "?" + qs;
@@ -59,15 +62,18 @@ async function callback(r) {
     }
 
     // exchange code for access tokens
+    let scheme = r.variables.scheme;
+    let http_host = r.variables.http_host;
     let qs = querystring.encode({
         grant_type: "authorization_code",
         client_id: process.env['AUTH0_CLIENT_ID'],
         client_secret: process.env['AUTH0_CLIENT_SECRET'],
         code: r.args['code'],
-        redirect_uri: "http://localhost:3000/callback",
+        redirect_uri: `${scheme}://${http_host}/callback`,
     });
 
-    let url = "https://condi.uk.auth0.com/oauth/token";
+    let auth0_domain = r.variables.auth0_domain;
+    let url = `https://${auth0_domain}/oauth/token`;
     let token_response = await ngx.fetch(url, {
         method: "POST",
         body: qs,
@@ -95,31 +101,58 @@ async function callback(r) {
 
 function index(r) {
     r.headersOut['content-type'] = "text/plain";
-    r.return(200, "Hello World!");
+
+    let auth_user = r.variables.auth_user;
+    if (auth_user == "") {
+        auth_user = "World";
+    }
+
+    r.return(200, `Hello ${auth_user}!`);
 }
 
+function api(r) {
+    r.headersOut['content-type'] = "application/json";
+    r.return(200, JSON.stringify({
+        id: r.variables.auth_unique_id,
+        name: r.variables.auth_user,
+        email: r.variables.auth_email,
+    }));
+}
+
+// Verify if a request is authenticated
+// An access token is retrieved from the session cookie,
+// and used to retrieve the user profile from the OIDC Userinfo Endpoint
 async function authenticate(r) {
-    let access_token = r.variables['access_token'];
+    let auth0_domain = r.variables.auth0_domain;
+    let access_token = r.variables.access_token;
     if (!access_token) {
         r.return(401, "");
         return
     }
 
-    let url = "https://condi.uk.auth0.com/userinfo";
+    let url = `https://${auth0_domain}/userinfo`;
     let response = await ngx.fetch(url, {
         headers: {
             "Authorization": "Bearer " + access_token,
         },
     });
 
-    //let profile = await response.json();
+    let profile = await response.json();
+    r.variables.auth_user = profile.nickname;
+    r.variables.auth_email = profile.email || profile.name;
+    r.variables.auth_unique_id = profile.sub;
     r.return(response.status, "Authenticated");
 }
 
+// When the session is over, logout the user from Auth0
 function logout(r) {
-    let logout_url = "https://condi.uk.auth0.com/oidc/logout";
+    let auth0_domain = r.variables.auth0_domain;
+    let logout_url = `https://${auth0_domain}/oidc/logout`;
+
+    let scheme = r.variables.scheme;
+    let http_host = r.variables.http_host;
     let qs = querystring.encode({
-        post_logout_redirect_uri: "http://localhost:3000",
+        post_logout_redirect_uri: `${scheme}://${http_host}/`,
     });
 
     let url = logout_url + "?" + qs;
@@ -135,4 +168,4 @@ function logout(r) {
     r.finish();
 }
 
-export default { authenticate, index, login, logout, callback};
+export default { authenticate, index, api, login, logout, callback};
