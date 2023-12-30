@@ -19,7 +19,7 @@ def main():
         print("Already authenticated")
         sys.exit(0)
 
-    # Oh no! we're noth authenticated!
+    # Oh no! we're not authenticated!
     assert response.status_code in (302, 401), response.status_code
 
     # Login with username and password

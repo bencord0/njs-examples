@@ -1,0 +1,116 @@
+GET / HTTP/1.1
+Host: auth.condi.me
+
+200 OK
+HTML
+---
+GET /api/state HTTP/1.1
+Host: auth.condi.me
+Referer: https://auth.condi.me/
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+
+{"status":"OK","data":{"username":"","authentication_level":0,"default_redirection_url":""}}
+---
+POST /api/firstfactor HTTP/1.1
+Host: auth.condi.me
+Origin: https://auth.condi.me
+Referer: https://auth.condi.me/
+Content-Type: application/json
+
+{"username":"bencord0","password":"......","keepMeLoggedIn":false}
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+Set-Cookie: authelia_session=....; expires=Sat, 25 Nov 2023 23:03:17 GMT; domain=condi.me; path=/; HttpOnly; secure; SameSite=Lax
+
+{"status":"OK"}
+---
+GET /api/state HTTP/1.1
+Host: auth.condi.me
+Referer: https://auth.condi.me/
+Cookie: authelia_session=....
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+
+
+{"status":"OK","data":{"username":"bencord0","authentication_level":1,"default_redirection_url":""}}
+---
+POST /api/user/info
+Host: auth.condi.me
+Cookie: authelia_session=....
+Origin: https://auth.condi.me
+Referer: https://auth.condi.me/
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+
+{"status":"OK","data":{"display_name":"bencord0","method":"totp","has_totp":true,"has_webauthn":true,"has_duo":false}}
+---
+GET /api/configuration HTTP/1.1
+Host: auth.condi.me
+Cookie: authelia_session=....
+Referer: https://auth.condi.me/
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+
+{"status":"OK","data":{"available_methods":["totp","webauthn"]}}
+---
+GET /api/user/info/totp HTTP/1.1
+Host: auth.condi.me
+Cookie: authelia_session=....
+Referer: https://auth.condi.me/2fa/one-time-password
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+
+{"status":"OK","data":{"digits":6,"period":30}}
+---
+POST /api/secondfactor/totp
+Host: auth.condi.me
+Origin: https://auth.condi.me
+Referer: https://auth.condi.me/2faa/one-time-password
+Cookie: authelia_session=....
+Content-Type: application/json
+
+{"token":"191214"}
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+Set-Cookie: authelia_session=....; expires=Sat, 25 Nov 2023 23:03:33 GMT; domain=condi.me; path=/; HttpOnly; secure; SameSite=Lax
+
+{"status":"OK"}
+---
+GET /api/state HTTP/1.1
+Host: auth.condi.me
+Referer: https://auth.condi.me/2fa/one-time-password
+Cookie: authelia_session=....
+
+200 OK
+Cache-Control: no-store
+Content-Type: application/json
+
+{"status":"OK","data":{"username":"bencord0","authentication_level":2,"default_redirection_url":""}}
+---
+#
+https://github.com/authelia/authelia/blob/master/docs/content/en/reference/guides/proxy-authorization.md#default-endpoints
+GET /api/verify
+Host: auth.condi.me
+Cookie: ....
+
+200 OK
+Content-Length: 0
+Cache-Control: no-store
+Remote-User: bencord0
+Remote-Groups:
+Remote-Name: bencord0
+Remote-Email: bencord0@condi.me
